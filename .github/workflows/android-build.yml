@@ -3,8 +3,6 @@ name: Android Build
 on:
   push:
     branches: [ "**" ]
-  pull_request:
-    branches: [ "**" ]
 
 jobs:
   build:
@@ -24,5 +22,29 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build with Gradle
+      - name: Decode keystore
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+
+      - name: Build signed nonRoot release APK
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        run: ./gradlew assembleNonRootRelease
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/keystore.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Build debug APK (fallback, no signing secrets)
+        if: ${{ secrets.KEYSTORE_BASE64 == '' }}
         run: ./gradlew assembleNonRootDebug
+
+      - name: Upload nonRoot APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: moonlight-nonRoot-release
+          path: |
+            app/build/outputs/apk/nonRoot/release/app-nonRoot-release.apk
+            app/build/outputs/apk/nonRoot/debug/app-nonRoot-debug.apk
+          if-no-files-found: ignore
