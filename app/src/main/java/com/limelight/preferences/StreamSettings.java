@@ -523,6 +523,26 @@ public class StreamSettings extends Activity {
 
             if (!PreferenceConfiguration.readPreferences(this.getActivity()).unlockFps) {
                 // We give some extra room in case the FPS is rounded down
+                if (maxSupportedFps < 162) {
+                    removeValue(PreferenceConfiguration.FPS_PREF_STRING, "165", new Runnable() {
+                        @Override
+                        public void run() {
+                            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(SettingsFragment.this.getActivity());
+                            setValue(PreferenceConfiguration.FPS_PREF_STRING, "144");
+                            resetBitrateToDefault(prefs, null, null);
+                        }
+                    });
+                }
+                if (maxSupportedFps < 141) {
+                    removeValue(PreferenceConfiguration.FPS_PREF_STRING, "144", new Runnable() {
+                        @Override
+                        public void run() {
+                            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(SettingsFragment.this.getActivity());
+                            setValue(PreferenceConfiguration.FPS_PREF_STRING, "120");
+                            resetBitrateToDefault(prefs, null, null);
+                        }
+                    });
+                }
                 if (maxSupportedFps < 118) {
                     removeValue(PreferenceConfiguration.FPS_PREF_STRING, "120", new Runnable() {
                         @Override
