@@ -219,7 +219,7 @@ public class NvConnection {
         return StreamConfiguration.STREAM_CFG_AUTO;
     }
     
-    private boolean startApp() throws XmlPullParserException, IOException
+    private boolean startApp() throws XmlPullParserException, IOException, InterruptedException
     {
         NvHTTP h = new NvHTTP(context.serverAddress, context.httpsPort, uniqueId, context.serverCert, cryptoProvider);
 
@@ -308,9 +308,10 @@ public class NvConnection {
         }
         
         // If there's a game running, resume it
-        if (h.getCurrentGame(serverInfo) != 0) {
+        int currentGameId = h.getCurrentGame(serverInfo);
+        if (currentGameId != 0) {
             try {
-                if (h.getCurrentGame(serverInfo) == app.getAppId()) {
+                if (currentGameId == app.getAppId()) {
                     if (!h.launchApp(context, "resume", app.getAppId(), context.negotiatedHdr)) {
                         context.connListener.displayMessage("Failed to resume existing session");
                         return false;

@@ -2184,7 +2184,9 @@ public class Game extends Activity implements SurfaceHolder.Callback,
             // Tell the OS not to buffer input events for us
             //
             // NB: This is still needed even when we call the newer requestUnbufferedDispatch()!
-            view.requestUnbufferedDispatch(event);
+            if (prefConfig.syncTouchEventWithDisplay) {
+                view.requestUnbufferedDispatch(event);
+            }
         }
 
         return handleMotionEvent(view, event);
