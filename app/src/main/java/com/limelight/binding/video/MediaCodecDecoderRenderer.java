@@ -28,6 +28,7 @@ import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.media.MediaCodec.BufferInfo;
 import android.media.MediaCodec.CodecException;
+import android.net.TrafficStats;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -119,6 +120,10 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     private LinkedBlockingQueue<Integer> outputBufferQueue = new LinkedBlockingQueue<>();
     private static final int OUTPUT_BUFFER_QUEUE_LIMIT = 2;
     private long lastRenderedFrameTimeNanos;
+    private final FrameIntervalTracker frameIntervalTracker = new FrameIntervalTracker(600);
+    private long lastPerfRxBytes = -1;
+    private long lastPerfRxTimestampMs;
+    private String lastValidBandwidth = "N/A";
     private HandlerThread choreographerHandlerThread;
     private Handler choreographerHandler;
 
@@ -1003,6 +1008,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
                     lastRenderedFrameTimeNanos = frameTimeNanos;
                     activeWindowVideoStats.totalFramesRendered++;
+                    frameIntervalTracker.recordFrame();
                 } catch (IllegalStateException ignored) {
                     try {
                         // Try to avoid leaking the output buffer by releasing it without rendering
@@ -1095,6 +1101,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                                 }
 
                                 activeWindowVideoStats.totalFramesRendered++;
+                                frameIntervalTracker.recordFrame();
                             }
                             else {
                                 // For balanced frame pacing case, the Choreographer callback will handle rendering.
@@ -1458,6 +1465,11 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                             (float)lastTwo.totalHostProcessingLatency / 10 / lastTwo.framesWithHostProcessingLatency)).append('\n');
                 }
                 sb.append(context.getString(R.string.perf_overlay_dectime, decodeTimeMs));
+                sb.append('\n').append(context.getString(R.string.perf_overlay_bandwidth, calculateBandwidth()));
+                float onePercentLow = frameIntervalTracker.getOnePercentLowFps();
+                if (onePercentLow > 0) {
+                    sb.append('\n').append(context.getString(R.string.perf_overlay_onepercentlow, onePercentLow));
+                }
                 perfListener.onPerfUpdate(sb.toString());
             }
 
@@ -1968,5 +1980,29 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
             return str;
         }
+    }
+
+    private String calculateBandwidth() {
+        long currentRx = TrafficStats.getTotalRxBytes();
+        long now = System.currentTimeMillis();
+        String result;
+
+        if (lastPerfRxBytes < 0 || lastPerfRxTimestampMs == 0) {
+            result = "N/A";
+        } else {
+            long intervalMs = now - lastPerfRxTimestampMs;
+            long deltaBytes = currentRx - lastPerfRxBytes;
+            if (intervalMs > 0 && intervalMs <= 5000 && deltaBytes >= 0) {
+                double speedMbps = (double) deltaBytes * 8.0 / (intervalMs * 1000.0);
+                result = String.format("%.2f Mbps", speedMbps);
+                lastValidBandwidth = result;
+            } else {
+                result = lastValidBandwidth;
+            }
+        }
+
+        lastPerfRxBytes = currentRx;
+        lastPerfRxTimestampMs = now;
+        return result;
     }
 }
