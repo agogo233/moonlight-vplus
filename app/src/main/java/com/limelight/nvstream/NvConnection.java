@@ -402,7 +402,7 @@ public class NvConnection {
                     context.connListener.displayMessage(e.getMessage());
                     context.connListener.stageFailed(appName, 0, e.getErrorCode());
                     return;
-                } catch (XmlPullParserException | IOException e) {
+                } catch (XmlPullParserException | IOException | InterruptedException e) {
                     e.printStackTrace();
                     context.connListener.displayMessage(e.getMessage());
                     context.connListener.stageFailed(appName, MoonBridge.ML_PORT_FLAG_TCP_47984 | MoonBridge.ML_PORT_FLAG_TCP_47989, 0);
