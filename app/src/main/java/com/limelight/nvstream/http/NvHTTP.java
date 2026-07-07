@@ -63,6 +63,7 @@ import okhttp3.ResponseBody;
 public class NvHTTP {
     private String uniqueId;
     private PairingManager pm;
+    private LimelightCryptoProvider cryptoProvider;
 
     private static final int DEFAULT_HTTPS_PORT = 47984;
     public static final int DEFAULT_HTTP_PORT = 47989;
@@ -205,6 +206,7 @@ public class NvHTTP {
         this.uniqueId = "0123456789ABCDEF";
 
         this.serverCert = serverCert;
+        this.cryptoProvider = cryptoProvider;
 
         initializeHttpState(cryptoProvider);
 
@@ -409,6 +411,28 @@ public class NvHTTP {
         }
     }
 
+    private synchronized OkHttpClient rebuildHttpClientsAfterTlsFailure(OkHttpClient failedClient) {
+        boolean wasShortConnectClient = failedClient == httpClientShortConnectTimeout;
+        boolean wasNoReadTimeoutClient = failedClient == httpClientLongConnectNoReadTimeout;
+
+        httpClientLongConnectTimeout.dispatcher().cancelAll();
+        httpClientLongConnectTimeout.connectionPool().evictAll();
+        httpClientShortConnectTimeout.dispatcher().cancelAll();
+        httpClientShortConnectTimeout.connectionPool().evictAll();
+        httpClientLongConnectNoReadTimeout.dispatcher().cancelAll();
+        httpClientLongConnectNoReadTimeout.connectionPool().evictAll();
+
+        initializeHttpState(cryptoProvider);
+
+        if (wasShortConnectClient) return httpClientShortConnectTimeout;
+        if (wasNoReadTimeoutClient) return httpClientLongConnectNoReadTimeout;
+        return httpClientLongConnectTimeout;
+    }
+
+    private static boolean shouldRetryTlsHandshake(SSLHandshakeException e) {
+        return !(e.getCause() instanceof CertificateException);
+    }
+
     private HttpUrl getCompleteUrl(HttpUrl baseUrl, String path, String query) {
         return baseUrl.newBuilder()
                 .addPathSegment(path)
@@ -429,7 +453,18 @@ public class NvHTTP {
     private ResponseBody openHttpConnection(OkHttpClient client, HttpUrl baseUrl, String path, String query) throws IOException {
         HttpUrl completeUrl = getCompleteUrl(baseUrl, path, query);
         Request request = new Request.Builder().url(completeUrl).get().build();
-        Response response = performAndroidTlsHack(client).newCall(request).execute();
+        Response response;
+        try {
+            response = performAndroidTlsHack(client).newCall(request).execute();
+        } catch (SSLHandshakeException e) {
+            if (!shouldRetryTlsHandshake(e)) {
+                throw e;
+            }
+
+            LimeLog.warning(completeUrl + " -> TLS handshake failed; rebuilding HTTP client and retrying once");
+            client = rebuildHttpClientsAfterTlsFailure(client);
+            response = performAndroidTlsHack(client).newCall(request).execute();
+        }
 
         ResponseBody body = response.body();
         

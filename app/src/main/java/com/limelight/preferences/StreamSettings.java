@@ -435,39 +435,45 @@ public class StreamSettings extends Activity {
                 MediaCodecInfo hevcDecoder = MediaCodecHelper.findProbableSafeDecoder("video/hevc", -1);
 
                 if (avcDecoder != null) {
-                    Range<Integer> avcWidthRange = avcDecoder.getCapabilitiesForType("video/avc").getVideoCapabilities().getSupportedWidths();
+                    MediaCodecInfo.VideoCapabilities avcVideoCaps = avcDecoder.getCapabilitiesForType("video/avc").getVideoCapabilities();
+                    if (avcVideoCaps != null) {
+                        Range<Integer> avcWidthRange = avcVideoCaps.getSupportedWidths();
 
-                    LimeLog.info("AVC supported width range: "+avcWidthRange.getLower()+" - "+avcWidthRange.getUpper());
+                        LimeLog.info("AVC supported width range: "+avcWidthRange.getLower()+" - "+avcWidthRange.getUpper());
 
-                    // If 720p is not reported as supported, ignore all results from this API
-                    if (avcWidthRange.contains(1280)) {
-                        if (avcWidthRange.contains(3840) && maxSupportedResW < 3840) {
-                            maxSupportedResW = 3840;
-                        }
-                        else if (avcWidthRange.contains(1920) && maxSupportedResW < 1920) {
-                            maxSupportedResW = 1920;
-                        }
-                        else if (maxSupportedResW < 1280) {
-                            maxSupportedResW = 1280;
+                        // If 720p is not reported as supported, ignore all results from this API
+                        if (avcWidthRange.contains(1280)) {
+                            if (avcWidthRange.contains(3840) && maxSupportedResW < 3840) {
+                                maxSupportedResW = 3840;
+                            }
+                            else if (avcWidthRange.contains(1920) && maxSupportedResW < 1920) {
+                                maxSupportedResW = 1920;
+                            }
+                            else if (maxSupportedResW < 1280) {
+                                maxSupportedResW = 1280;
+                            }
                         }
                     }
                 }
 
                 if (hevcDecoder != null) {
-                    Range<Integer> hevcWidthRange = hevcDecoder.getCapabilitiesForType("video/hevc").getVideoCapabilities().getSupportedWidths();
+                    MediaCodecInfo.VideoCapabilities hevcVideoCaps = hevcDecoder.getCapabilitiesForType("video/hevc").getVideoCapabilities();
+                    if (hevcVideoCaps != null) {
+                        Range<Integer> hevcWidthRange = hevcVideoCaps.getSupportedWidths();
 
-                    LimeLog.info("HEVC supported width range: "+hevcWidthRange.getLower()+" - "+hevcWidthRange.getUpper());
+                        LimeLog.info("HEVC supported width range: "+hevcWidthRange.getLower()+" - "+hevcWidthRange.getUpper());
 
-                    // If 720p is not reported as supported, ignore all results from this API
-                    if (hevcWidthRange.contains(1280)) {
-                        if (hevcWidthRange.contains(3840) && maxSupportedResW < 3840) {
-                            maxSupportedResW = 3840;
-                        }
-                        else if (hevcWidthRange.contains(1920) && maxSupportedResW < 1920) {
-                            maxSupportedResW = 1920;
-                        }
-                        else if (maxSupportedResW < 1280) {
-                            maxSupportedResW = 1280;
+                        // If 720p is not reported as supported, ignore all results from this API
+                        if (hevcWidthRange.contains(1280)) {
+                            if (hevcWidthRange.contains(3840) && maxSupportedResW < 3840) {
+                                maxSupportedResW = 3840;
+                            }
+                            else if (hevcWidthRange.contains(1920) && maxSupportedResW < 1920) {
+                                maxSupportedResW = 1920;
+                            }
+                            else if (maxSupportedResW < 1280) {
+                                maxSupportedResW = 1280;
+                            }
                         }
                     }
                 }

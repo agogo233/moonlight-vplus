@@ -68,7 +68,13 @@ public class PairingManager {
     private X509Certificate extractPlainCert(String text) throws XmlPullParserException, IOException
     {
         // Plaincert may be null if another client is already trying to pair
-        String certText = NvHTTP.getXmlString(text, "plaincert", false);
+        String certText;
+        try {
+            certText = NvHTTP.getXmlString(text, "plaincert", false);
+        } catch (HostHttpResponseException e) {
+            LimeLog.warning("getservercert returned status " + e.getErrorCode() + ", checking plaincert value anyway");
+            certText = extractXmlValue(text, "plaincert");
+        }
         if (certText != null) {
             byte[] certBytes = hexToBytes(certText);
 
@@ -207,7 +213,14 @@ public class PairingManager {
         String getCert = http.executePairingCommand("phrase=getservercert&salt="+
                 bytesToHex(salt)+"&clientcert="+bytesToHex(pemCertBytes),
                 false);
-        if (!NvHTTP.getXmlString(getCert, "paired", true).equals("1")) {
+        String pairedValue;
+        try {
+            pairedValue = NvHTTP.getXmlString(getCert, "paired", true);
+        } catch (HostHttpResponseException e) {
+            LimeLog.warning("getservercert returned status " + e.getErrorCode() + ", checking paired value anyway");
+            pairedValue = extractXmlValue(getCert, "paired");
+        }
+        if (pairedValue == null || !pairedValue.equals("1")) {
             return PairState.FAILED;
         }
 
@@ -293,6 +306,16 @@ public class PairingManager {
         return PairState.PAIRED;
     }
     
+    private static String extractXmlValue(String xml, String tagName) {
+        String startTag = "<" + tagName + ">";
+        int start = xml.indexOf(startTag);
+        if (start < 0) return null;
+        int valueStart = start + startTag.length();
+        int end = xml.indexOf("</" + tagName + ">", valueStart);
+        if (end < 0) return null;
+        return xml.substring(valueStart, end);
+    }
+
     private interface PairingHashAlgorithm {
         int getHashLength();
         byte[] hashData(byte[] data);
